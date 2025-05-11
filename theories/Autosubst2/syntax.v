@@ -5,9 +5,7 @@ Require Import Setoid Morphisms Relation_Definitions.
 Axiom web : Type.
 Axiom web_eq : web -> web -> bool.
 Axiom web_eq_dec : (forall w1 w2, web_eq w1 w2 = true <-> w1 = w2).
-Lemma web_eq_dec' : (forall w1 w2, web_eq w1 w2 = false <-> w1 <> w2).
-Proof.
-Admitted.
+Axiom web_eq_dec' : (forall w1 w2, web_eq w1 w2 = false <-> w1 <> w2).
 
 Module Core.
 

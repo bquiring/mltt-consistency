@@ -885,7 +885,7 @@ Definition canon_prop (U : tm) (a : tm) : Prop :=
 Lemma wt_canon a U :
   nil ⊢ a ∈ U -> canon_prop U a.
 Proof.
-Admitted.
+  Admitted.
 (*
   move /wt_wrong_hf_contra; hauto drew:off ctrs:tm inv:tm unfold:canon_prop.
 Qed.

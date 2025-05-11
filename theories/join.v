@@ -507,7 +507,10 @@ Function tstar (a : tm) :=
   | tPi w A B => tPi w (tstar A) (tstar B)
   | tAbs w a => tAbs w (tstar a)
   | tApp w (tAbs w' a') b =>
-      if web_eq w w' then (tstar a') [(tstar b)..] else a
+      if web_eq w w'
+      then (tstar a') [(tstar b)..]
+      else (* TODO: is this correct? or just a? I couldn't prove it with that *)
+        tApp w (tAbs w' (tstar a')) (tstar b)
   | tApp w a b => tApp w (tstar a) (tstar b)
   | tZero => tZero
   | tSuc a => tSuc (tstar a)
@@ -529,18 +532,20 @@ Lemma Par_triangle a : forall b, (a ⇒ b) -> (b ⇒ tstar a).
 Proof.
   apply tstar_ind. 
   1,2,3,4,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21: hauto lq:on inv:Par use:Par_refl,Par_cong,Par_cong2 ctrs:Par.
-  - intros. 
+  - (* tApp, w = w' *)
+    intros. 
     rewrite web_eq_dec in e0; subst. 
     hauto lq:on inv:Par use:Par_refl,Par_cong,Par_cong2 ctrs:Par.
-  - intros.
+  - (* tApp, w <> w' *)
+    intros.
     destruct _x; auto; try contradiction.
     rewrite web_eq_dec' in e0; subst. 
-    inversion H; subst.
-    + (* H4 is very weird. *)
-      inversion H4; subst.
-      admit.
-    + destruct e0; auto.
-Admitted.
+    inversion H1; subst. 
+    2: destruct e0; auto.
+    inversion H6; subst.
+    constructor; auto.
+    constructor; auto.
+Qed.
 
 Lemma Par_confluent : diamond Par.
 Proof. hauto lq:on use:Par_triangle unfold:diamond. Qed.

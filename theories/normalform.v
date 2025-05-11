@@ -111,15 +111,11 @@ Proof.
   - move => + []//. eauto with par.
   - move => w A0 A1 B0 B1 h0 ih0 h1 ih1 [] // /=.
     hauto lq:on ctrs:Par.
-  - admit.
-    (*move => w a0 a1 h ih [] // a ξ [] ?.
-    hauto lq:on ctrs:Par.*)
-    
+  - move => w a0 a1 h ih [] // a ξ ? [].
+    hauto lq:on ctrs:Par.
   - move => w a0 a1 b0 b1  + + + + []//.
     hauto q:on ctrs:Par.
-  - admit. 
-    (*
-    move => a a0 b0- b1 ha iha hb ihb []// []// t t0 ξ [] *. subst.
+  - move => w a a0 b0- b1 ha iha hb ihb []// w' []// w'' t t0 ξ [] *. subst.
     specialize iha with (1 := eq_refl).
     specialize ihb with (1 := eq_refl).
     move : iha => [a [? ?]]. subst.
@@ -127,7 +123,6 @@ Proof.
     exists (subst_tm (b..) a).
     split; last by asimpl.
     hauto lq:on ctrs:Par.
-    *)
   - hauto q:on ctrs:Par inv:tm.
   - move => + + + + []//=.
     qauto l:on ctrs:Par.
@@ -171,7 +166,7 @@ Proof.
     move : ihc => [c2 [ihc ?]]. subst.
     exists (c2[b2 .: a2 ..]).
     split; [by auto with par | by asimpl].
-Admitted.
+Qed.
 
 Local Lemma Pars_antirenaming (a b0 : tm) (ξ : nat -> nat)
   (h : (a⟨ξ⟩ ⇒* b0)) : exists b, b0 = b⟨ξ⟩ /\ (a ⇒* b).
