@@ -1,9 +1,10 @@
 tm : Type
 nat : Type
+web : Type
 
-tAbs : (bind tm in tm) -> tm
-tApp : tm -> tm -> tm
-tPi : tm -> (bind tm in tm) -> tm
+tAbs : web -> (bind tm in tm) -> tm
+tApp : web -> tm -> tm -> tm
+tPi : web -> tm -> (bind tm in tm) -> tm
 tUniv : nat -> tm
 tEq : tm -> tm -> tm -> tm
 tJ : tm -> tm -> tm -> tm -> tm
