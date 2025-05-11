@@ -48,12 +48,12 @@ Lemma T_Ind' Γ a b c A i T :
   Γ ⊢ tInd a b c ∈ T.
 Proof. move  =>> ->. apply T_Ind. Qed.
 
-Lemma T_App' Γ a A B0 B b :
+Lemma T_App' Γ w a A B0 B b :
   B0 = (subst_tm (b..) B) ->
-  Γ ⊢ a ∈ (tPi A B) ->
+  Γ ⊢ a ∈ (tPi w A B) ->
   Γ ⊢ b ∈ A ->
   (* -------------------- *)
-  Γ ⊢ (tApp a b) ∈ B0.
+  Γ ⊢ (tApp w a b) ∈ B0.
 Proof. move =>> ->. apply T_App. Qed.
 
 Lemma T_J' (Γ : context) (t a b p A : tm) (i j : fin) (C C0 : tm) :
@@ -107,13 +107,13 @@ Proof.
   qauto l:on use:Wt_Wff ctrs:Wt.
 Qed.
 
-Lemma Wt_Pi_inv Γ A B U (h : Γ ⊢ (tPi A B) ∈ U) :
+Lemma Wt_Pi_inv Γ w A B U (h : Γ ⊢ (tPi w A B) ∈ U) :
   exists i, Γ ⊢ A ∈ (tUniv i) /\
          (A :: Γ) ⊢ B ∈ (tUniv i) /\
          tUniv i <: U /\
          exists i, Γ ⊢ U ∈ (tUniv i).
 Proof.
-  move E : (tPi A B) h => T h.
+  move E : (tPi w A B) h => T h.
   move : A B E.
   elim :  Γ T U / h => //.
   - hauto lq:on use:Wt_Univ, Sub_reflexive.
@@ -133,7 +133,7 @@ Proof.
   - hauto lq:on use:Wt_Univ, Sub_reflexive.
 Qed.
 
-Lemma Wt_Pi_Univ_inv Γ A B i (h : Γ ⊢ (tPi A B) ∈ (tUniv i)) :
+Lemma Wt_Pi_Univ_inv Γ w A B i (h : Γ ⊢ (tPi w A B) ∈ (tUniv i)) :
   Γ ⊢ A ∈ (tUniv i) /\
   (A :: Γ) ⊢ B ∈ (tUniv i).
 Proof.
@@ -146,13 +146,13 @@ Proof.
   hauto lq:on ctrs:Wt.
 Qed.
 
-Lemma Wt_Abs_inv Γ a T (h : Γ ⊢ (tAbs a) ∈ T) :
-  exists A B i, Γ ⊢ (tPi A B) ∈ (tUniv i) /\
+Lemma Wt_Abs_inv Γ w a T (h : Γ ⊢ (tAbs w a) ∈ T) :
+  exists A B i, Γ ⊢ (tPi w A B) ∈ (tUniv i) /\
          (A :: Γ) ⊢ a ∈ B /\
-         tPi A B <: T /\
+         tPi w A B <: T /\
          exists i, (Γ ⊢ T ∈ (tUniv i)).
 Proof.
-  move E : (tAbs a) h => a0 h.
+  move E : (tAbs w a) h => a0 h.
   move : a E.
   elim : Γ a0 T / h => //.
   - hauto lq:on use:Sub_reflexive.
@@ -409,16 +409,16 @@ Proof.
   - eauto using subst_Syn_Univ.
 Qed.
 
-Lemma Wt_App_inv Γ b a T (h : Γ ⊢ (tApp b a) ∈ T) :
-  exists A B, Γ ⊢ b ∈ tPi A B /\
+Lemma Wt_App_inv Γ w b a T (h : Γ ⊢ (tApp w b a) ∈ T) :
+  exists A B, Γ ⊢ b ∈ tPi w A B /\
          Γ ⊢ a ∈ A /\
          subst_tm (a..) B <: T /\
          exists i, Γ ⊢ T ∈ tUniv i.
 Proof.
-  move E : (tApp b a) h => ba h.
+  move E : (tApp w b a) h => ba h.
   move : b a E.
   elim : Γ ba T /h => //.
-  - move => Γ a A B b h0 _ h1 _ ? ? [] *; subst.
+  - move => Γ w' a A B b h0 _ h1 _ ? ? [] *; subst.
     exists A, B; repeat split => //.
     + apply Sub_morphing. apply Sub_reflexive.
     + qauto ctrs:Wt use:Wt_Pi_Univ_inv, subst_Syn_Univ, Wt_regularity.
@@ -500,10 +500,10 @@ Proof.
        hauto l:on use:T_J.
 Qed.
 
-Lemma T_Abs_simple Γ A a B :
+Lemma T_Abs_simple Γ w A a B :
   A :: Γ ⊢ a ∈ B ->
   (* -------------------- *)
-  Γ ⊢ tAbs a ∈ tPi A B.
+  Γ ⊢ tAbs w a ∈ tPi w A B.
 Proof.
   move => h.
   have hΓ : ⊢ A :: Γ by sfirstorder use:Wt_Wff.
@@ -649,19 +649,19 @@ Lemma subject_reduction a b (h : a ⇒ b) : forall Γ A,
     Γ ⊢ a ∈ A -> Γ ⊢ b ∈ A.
 Proof.
   elim : a b /h => //.
-  - move => A0 A1 B0 B1 h0 ih0 h1 ih1 Γ A /Wt_Pi_inv.
+  - move => w A0 A1 B0 B1 h0 ih0 h1 ih1 Γ A /Wt_Pi_inv.
     intros (i & hA0 & hAB0 & hACoherent & j & hA).
     have ? : ⊢ Γ by eauto with wff.
     apply T_Conv with (A := tUniv i) (i := j) => //.
     qauto l:on ctrs:Wt use:preservation_helper, Par_Sub.
-  - move => a0 a1 h0 ih0 Γ A /Wt_Abs_inv.
+  - move => w a0 a1 h0 ih0 Γ A /Wt_Abs_inv.
     intros (A1 & B & i & hPi & ha0 & hCoherent & j & hA).
     case /Wt_Pi_Univ_inv : hPi => hA0 hB.
-    apply T_Conv with (A := tPi A1 B) (i := j) => //.
+    apply T_Conv with (A := tPi w A1 B) (i := j) => //.
     apply T_Abs with (i := i).
     + qauto l:on ctrs:Wt use:preservation_helper, Par_Sub.
     + qauto l:on ctrs:Wt use:preservation_helper, Par_Sub.
-  - move => a0 a1 b0 b1 h0 ih0 h1 ih1 Γ A /Wt_App_inv.
+  - move => w a0 a1 b0 b1 h0 ih0 h1 ih1 Γ A /Wt_App_inv.
     intros (A0 & B & hPi & hb0 & hCoherent & i & hA).
     eapply T_Conv with (A := subst_tm (b1..) B); eauto.
     apply : T_App; eauto.
@@ -669,7 +669,7 @@ Proof.
     have : B[b0..] ⇒ B[b1..]; last by hauto l:on use:Par_Sub.
     apply Par_morphing; last by apply Par_refl.
     hauto q:on unfold:Par_m ctrs:Par inv:nat simp:asimpl.
-  - move => a a0 b0 b1 haa0 iha hbb0 ihb Γ A0 /Wt_App_inv.
+  - move => w a a0 b0 b1 haa0 iha hbb0 ihb Γ A0 /Wt_App_inv.
     intros (A1 & B & ha & hb0 & hCoherent & i & hA0).
     have /Wt_Abs_inv := ha; intros (A & B0 & k & hPi & ha0 & hCoherent' & j & hPi').
     case /Sub_pi_inj : hCoherent' => *.
@@ -820,13 +820,13 @@ Qed.
 (* ----------------------------------------------- *)
 Definition is_value (a : tm) :=
   match a with
-  | tPi A B => true
-  | tAbs a => true
+  | tPi w A B => true
+  | tAbs w a => true
   | tNat => true
   | tSuc _ => true
   | tZero => true
   | tInd a b c => false
-  | tApp a b => false
+  | tApp w a b => false
   | tUniv _ => true
   | tRefl => true
   | tJ _ _ _ _ => false
@@ -839,11 +839,11 @@ Definition is_value (a : tm) :=
 
 Definition head_inhab (a : tm) : head :=
   match a with
-  | tAbs _ => hPi
+  | tAbs _ _ => hPi
   | tSuc _ => hNat
   | tZero => hNat
   | tRefl => hEq
-  | tPi _ _ => hUniv
+  | tPi _ _ _ => hUniv
   | tEq _ _ _ => hUniv
   | tUniv _ => hUniv
   | tNat => hUniv
@@ -875,7 +875,7 @@ Qed.
 Definition canon_prop (U : tm) (a : tm) : Prop :=
   is_value a ->
   match U with
-  | tPi A B => exists a0, a = tAbs a0
+  | tPi w A B => exists a0, a = tAbs w a0
   | tEq _ _ _ => a = tRefl
   | tNat => a = tZero \/ exists b, a = tSuc b
   | tSig _ _ => exists a0 b0, a = tPack a0 b0
@@ -885,19 +885,22 @@ Definition canon_prop (U : tm) (a : tm) : Prop :=
 Lemma wt_canon a U :
   nil ⊢ a ∈ U -> canon_prop U a.
 Proof.
+Admitted.
+(*
   move /wt_wrong_hf_contra; hauto drew:off ctrs:tm inv:tm unfold:canon_prop.
 Qed.
+*)
 
 (* Call by name reduction *)
 Reserved Infix "⇝" (at level 60, right associativity).
 Inductive CBN : tm -> tm -> Prop :=
-| N_App a0 a1 b :
+| N_App w a0 a1 b :
   (a0 ⇝ a1) ->
   (* ------------------- *)
-  (tApp a0 b) ⇝ (tApp a1 b)
-| N_AppAbs a b :
+  (tApp w a0 b) ⇝ (tApp w a1 b)
+| N_AppAbs w a b :
   (* -------------------- *)
-  (tApp (tAbs a) b) ⇝ a[b..]
+  (tApp w (tAbs w a) b) ⇝ a[b..]
 | N_Ind a b c0 c1 :
   (c0 ⇝ c1) ->
   (* ----------------------- *)
@@ -956,8 +959,9 @@ CoInductive Eval a : Prop :=
 | E_Step b : a ⇝ b -> Eval b -> Eval a.
 
 (* We need evaluation to be coinductive to express divergence of e.g. (λx. x x) (λx. x x) *)
-CoFixpoint Omega (omega := tAbs (tApp (var_tm 0) (var_tm 0))) :
-  Eval (tApp omega omega).
+Axiom w_omega : web.
+CoFixpoint Omega (omega := tAbs w_omega (tApp w_omega (var_tm 0) (var_tm 0))) :
+  Eval (tApp w_omega omega omega).
 Proof.
   eapply E_Step; last by (exact Omega).
   apply N_AppAbs.

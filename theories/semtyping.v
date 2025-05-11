@@ -1,7 +1,7 @@
 Require Import join normalform imports.
 
-Definition ProdSpace (PA : tm -> Prop) (PF : tm -> (tm -> Prop) -> Prop) (b : tm) :=
-  forall a PB, PA a -> PF a PB -> PB (tApp b a).
+Definition ProdSpace (PA : tm -> Prop) (PF : tm -> (tm -> Prop) -> Prop) w (b : tm) :=
+  forall a PB, PA a -> PF a PB -> PB (tApp w b a).
 
 Definition SumSpace (PA : tm -> Prop) (PF : tm -> (tm -> Prop) -> Prop) t :=
   (exists a b, t ⇒* tPack a b /\ PA a /\ (forall PB, PF a PB -> PB b)) \/ wne t.
@@ -26,7 +26,8 @@ Inductive InterpExt i (I : nat -> tm -> Prop) : tm -> (tm -> Prop) -> Prop :=
   ⟦ A ⟧ i , I ↘ PA ->
   (forall a, PA a -> exists PB, PF a PB) ->
   (forall a PB, PF a PB -> ⟦ B[a..] ⟧ i , I ↘ PB) ->
-  ⟦ tPi A B ⟧ i , I ↘ (ProdSpace PA PF)
+  forall w,
+  ⟦ tPi w A B ⟧ i , I ↘ (ProdSpace PA PF w)
 | InterpExt_Univ j :
   j < i ->
   ⟦ tUniv j ⟧ i , I ↘ (I j)
@@ -127,15 +128,15 @@ Qed.
 
 #[export]Hint Rewrite InterpUnivN_nolt : InterpUniv.
 
-Lemma InterpExt_Fun_inv i I A B P
-  (h :  ⟦ tPi A B ⟧ i , I ↘ P) :
+Lemma InterpExt_Fun_inv i I A B P w
+  (h :  ⟦ tPi w A B ⟧ i , I ↘ P) :
   exists (PA : tm -> Prop) (PF : tm -> (tm -> Prop) -> Prop),
      ⟦ A ⟧ i , I ↘ PA /\
     (forall a, PA a -> exists PB, PF a PB) /\
     (forall a PB, PF a PB -> ⟦ B[a..] ⟧ i , I ↘ PB) /\
-    P = ProdSpace PA PF.
+    P = ProdSpace PA PF w.
 Proof.
-  move E : (tPi A B) h => T h.
+  move E : (tPi w A B) h => T h.
   move : A B E.
   elim : T P / h => //.
   - hauto q:on inv:tm.
@@ -168,10 +169,10 @@ Qed.
 (* -----  I-PiAlt is admissible (free of PF, the relation R on paper)  ---- *)
 
 
-Lemma InterpUnivN_Fun_nopf i A B PA :
+Lemma InterpUnivN_Fun_nopf i A B PA w :
   ⟦ A ⟧ i ↘ PA ->
   (forall a, PA a -> exists PB, ⟦ B[a..] ⟧ i ↘ PB) ->
-  ⟦ tPi A B ⟧ i ↘ (ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i ↘ PB)).
+  ⟦ tPi w A B ⟧ i ↘ (ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i ↘ PB) w).
 Proof.
   hauto l:on ctrs:InterpExt rew:db:InterpUniv.
 Qed.
@@ -217,9 +218,10 @@ Proof.
   elim : A P / h; auto.
   - hauto lq:on ctrs:InterpExt db:nfne.
   - hauto lq:on inv:Par ctrs:InterpExt.
-  - move => A B PA PF hPA ihPA hPB hPB' ihPB T hT.
+  - move => A B PA PF hPA ihPA hPB hPB' ihPB w T hT.
     elim /Par_inv :  hT => //.
-    move => hPar A0 A1 B0 B1 h0 h1 [? ?] ?; subst.
+    move => hPar w' A0 A1 B0 B1 h0 h1 [? ?] ?; subst.
+    intro.
     apply InterpExt_Fun; auto.
     move => a PB hPB0.
     apply : ihPB; eauto.
@@ -364,7 +366,7 @@ Proof.
   elim : A PA / h.
   - hauto lq:on inv:InterpExt ctrs:InterpExt use:InterpExt_Ne_inv.
   - hauto lq:on inv:InterpExt use:InterpExt_Nat_inv.
-  - move => A B PA PF hPA ihPA hPB hPB' ihPB P hP.
+  - move => A B PA PF hPA ihPA hPB hPB' ihPB w P hP.
     move /InterpExt_Fun_inv : hP.
     intros (PA0 & PF0 & hPA0 & hPB0 & hPB0' & ?); subst.
     have ? : PA0 = PA by sfirstorder. subst.
@@ -415,11 +417,11 @@ Proof. hauto lq:on rew:off use:InterpExt_deterministic' rew:db:InterpUniv. Qed.
 (* ----- Improved inversion lemma for functions (Pi Inv Alt) ---------- *)
 
 
-Lemma InterpExt_Fun_inv_nopf i I A B P  (h : InterpExt i I (tPi A B) P) :
+Lemma InterpExt_Fun_inv_nopf i I A B P w  (h : InterpExt i I (tPi w A B) P) :
   exists (PA : tm -> Prop),
      ⟦ A ⟧ i , I ↘ PA /\
     (forall a, PA a -> exists PB, ⟦ B[a..] ⟧ i , I ↘ PB) /\
-      P = ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i , I ↘ PB).
+      P = ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i , I ↘ PB) w.
 Proof.
   move /InterpExt_Fun_inv : h. intros (PA & PF & hPA & hPF & hPF' & ?); subst.
   exists PA. repeat split => //.
@@ -433,11 +435,11 @@ Proof.
 Qed.
 
 
-Lemma InterpUnivN_Fun_inv_nopf i A B P  (h : InterpUnivN i (tPi A B) P) :
+Lemma InterpUnivN_Fun_inv_nopf i A B P w  (h : InterpUnivN i (tPi w A B) P) :
   exists (PA : tm -> Prop),
     ⟦ A ⟧ i ↘ PA /\
     (forall a, PA a -> exists PB, ⟦ B[a..] ⟧ i ↘ PB) /\
-      P = ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i ↘ PB).
+      P = ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i ↘ PB) w.
 Proof.
   qauto use:InterpExt_Fun_inv_nopf l:on rew:db:InterpUniv.
 Qed.
@@ -493,7 +495,8 @@ Lemma InterpUniv_ind (P : nat -> tm -> (tm -> Prop) -> Prop) :
       P i A PA ->
       (forall a, PA a -> exists PB, ⟦ B[a..] ⟧ i ↘ PB /\ P i (B[a..]) PB) ->
       (forall a, PA a -> forall PB, ⟦ B[a..] ⟧ i ↘ PB -> P i (B[a..]) PB) ->
-      P i (tPi A B) (ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i ↘ PB))) ->
+      forall w,
+      P i (tPi w A B) (ProdSpace PA (fun a PB => ⟦ B[a..] ⟧ i ↘ PB) w)) ->
   (* Univ *)
   (forall i j : fin, j < i -> (forall k A PA, k < i -> ⟦ A ⟧ k ↘ PA -> P k A PA) ->
               P i (tUniv j) (fun A => exists PA, ⟦ A ⟧ j ↘ PA)) ->
@@ -521,7 +524,7 @@ Proof.
     move => A B PA PF hPA ihPA hTot hPF ihPF.
     have <- : (ProdSpace PA (fun (a : tm) (PB : tm -> Prop) => ⟦ B[a..] ⟧ i ↘ PB)) = ProdSpace PA PF.
     rewrite /ProdSpace.
-    extensionality b. extensionality a. extensionality PB. extensionality ha.
+    extensionality w. extensionality b. extensionality a. extensionality PB. extensionality ha.
     apply propositional_extensionality.
     split.
     hauto l:on.
@@ -604,7 +607,7 @@ Proof.
   apply : InterpUniv_ind.
   - hauto lq:on ctrs:rtc.
   - hauto lq:on ctrs:rtc.
-  - have ? : forall b0 b1 a, b0 ⇒ b1 -> tApp b0 a ⇒ tApp b1 a
+  - have ? : forall w b0 b1 a, b0 ⇒ b1 -> tApp w b0 a ⇒ tApp w b1 a
         by hauto lq:on ctrs:Par use:Par_refl.
     hauto lq:on unfold:ProdSpace.
   - qauto l:on rew:db:InterpUniv ctrs:InterpExt.
@@ -643,7 +646,7 @@ Proof.
     repeat split.
     + rewrite /ProdSpace => b hb.
       move /hPB : (hzero) => [PB][ih0]ih1.
-      apply ext_wn with (i := var_zero). hauto lq:on.
+      apply ext_wn with (w := w) (i := var_zero). hauto lq:on.
     + rewrite /ProdSpace => b hb a PB ha.
       suff : wn a by hauto q:on use:wne_app. hauto q:on.
     + apply wn_pi.
@@ -702,11 +705,11 @@ Proof.
   - move => _ j B PB hB.
     split;inversion 1; subst; move/InterpUnivN_Nat_inv in hB;
       sfirstorder.
-  - move => i A0 B0 PA0 hPA0 ihA0 hTot ihPF j B PB hPB.
-    have ? : ⟦ tPi A0 B0 ⟧ i ↘ (ProdSpace PA0 (fun (a0 : tm) (PB0 : tm -> Prop) => ⟦ B0[a0..] ⟧ i ↘ PB0)) by hauto l:on use:InterpUnivN_Fun_nopf.
+  - move => i A0 B0 PA0 hPA0 ihA0 hTot ihPF w j B PB hPB.
+    have ? : ⟦ tPi w A0 B0 ⟧ i ↘ (ProdSpace PA0 (fun (a0 : tm) (PB0 : tm -> Prop) => ⟦ B0[a0..] ⟧ i ↘ PB0) w) by hauto l:on use:InterpUnivN_Fun_nopf.
     split.
     + elim /sub1_inv=>//.
-      move => _ A1 B1 A2 B2 hs1 hs2 []? ? ?. subst.
+      move => _ w' A1 B1 A2 B2 hs1 hs2 []? ? ? ?. subst.
       move /InterpUnivN_Fun_inv_nopf : hPB => [PA1][hPA1][hTot']?. subst.
       have {}ihA0 : forall a, PA1 a -> PA0 a by hauto l:on.
       move => b hb a PB2 ha hPB2.
@@ -717,7 +720,7 @@ Proof.
       move /ihPF : hPB2 (hPB0). move/[apply].
       hauto lq:on unfold:ProdSpace.
     + elim /sub1_inv=>//.
-      move => _ A1 B1 A2 B2 hs1 hs2 ?[] ? ?. subst.
+      move => _ w' A1 B1 A2 B2 hs1 hs2 ?[] ? ? ?. subst.
       move /InterpUnivN_Fun_inv_nopf : hPB => [PA1][hPA1][hTot']?. subst.
       have {}ihA0 : forall a, PA0 a -> PA1 a by hauto l:on.
       move => b hb a PB0 ha hPB0.

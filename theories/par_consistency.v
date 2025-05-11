@@ -9,13 +9,13 @@ Inductive head := hPi | hNat | hUniv | hEq | hBot | hZero | hSuc | hSig | hPack.
 
 Definition tm_to_head (a : tm) :=
   match a with
-  | tPi A B => hPi
-  | tAbs a => hBot
+  | tPi w A B => hPi
+  | tAbs w a => hBot
   | tNat => hNat
   | tZero => hZero
   | tSuc _ => hSuc
   | tInd a b c => hBot
-  | tApp a b => hBot
+  | tApp w a b => hBot
   | tUniv _ => hUniv
   | var_tm _ => hBot
   | tEq _ _ _ => hEq

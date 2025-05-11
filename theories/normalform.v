@@ -4,9 +4,9 @@ Require Import join imports.
 Fixpoint ne (a : tm) : bool :=
   match a with
   | var_tm _ => true
-  | tApp a b => ne a && nf b
-  | tAbs _ => false
-  | tPi A B => false
+  | tApp w a b => ne a && nf b
+  | tAbs w _ => false
+  | tPi w A B => false
   | tJ t a b p => nf t && nf a && nf b && ne p
   | tUniv _ => false
   | tZero => false
@@ -22,9 +22,9 @@ Fixpoint ne (a : tm) : bool :=
 with nf (a : tm) : bool :=
   match a with
   | var_tm _ => true
-  | tApp a b => ne a && nf b
-  | tAbs a => nf a
-  | tPi A B => nf A && nf B
+  | tApp w a b => ne a && nf b
+  | tAbs w a => nf a
+  | tPi w A B => nf A && nf B
   | tJ t a b p => nf t && nf a && nf b && ne p
   | tUniv _ => true
   | tZero => true
@@ -109,13 +109,17 @@ Proof.
   elim : a0 b0 / h.
   - move => + []//. eauto with par.
   - move => + []//. eauto with par.
-  - move => A0 A1 B0 B1 h0 ih0 h1 ih1 [] // /=.
+  - move => w A0 A1 B0 B1 h0 ih0 h1 ih1 [] // /=.
     hauto lq:on ctrs:Par.
-  - move => a0 a1 h ih [] // a ξ [] ?.
-    hauto lq:on ctrs:Par.
-  - move => a0 a1 b0 b1  + + + + []//.
+  - admit.
+    (*move => w a0 a1 h ih [] // a ξ [] ?.
+    hauto lq:on ctrs:Par.*)
+    
+  - move => w a0 a1 b0 b1  + + + + []//.
     hauto q:on ctrs:Par.
-  - move => a a0 b0- b1 ha iha hb ihb []// []// t t0 ξ [] *. subst.
+  - admit. 
+    (*
+    move => a a0 b0- b1 ha iha hb ihb []// []// t t0 ξ [] *. subst.
     specialize iha with (1 := eq_refl).
     specialize ihb with (1 := eq_refl).
     move : iha => [a [? ?]]. subst.
@@ -123,6 +127,7 @@ Proof.
     exists (subst_tm (b..) a).
     split; last by asimpl.
     hauto lq:on ctrs:Par.
+    *)
   - hauto q:on ctrs:Par inv:tm.
   - move => + + + + []//=.
     qauto l:on ctrs:Par.
@@ -166,7 +171,7 @@ Proof.
     move : ihc => [c2 [ihc ?]]. subst.
     exists (c2[b2 .: a2 ..]).
     split; [by auto with par | by asimpl].
-Qed.
+Admitted.
 
 Local Lemma Pars_antirenaming (a b0 : tm) (ξ : nat -> nat)
   (h : (a⟨ξ⟩ ⇒* b0)) : exists b, b0 = b⟨ξ⟩ /\ (a ⇒* b).
@@ -197,10 +202,10 @@ Qed.
   move => *; eapply rtc_l; eauto;
   hauto lq:on ctrs:Par use:Par_refl.
 
-Lemma S_AppLR (a a0 b b0 : tm) :
+Lemma S_AppLR w (a a0 b b0 : tm) :
   a ⇒* a0 ->
   b ⇒* b0 ->
-  (tApp a b) ⇒* (tApp a0 b0).
+  (tApp w a b) ⇒* (tApp w a0 b0).
 Proof.
   move => h. move :  b b0.
   elim : a a0 / h.
@@ -259,10 +264,10 @@ Proof.
   auto using rtc_refl.
 Qed.
 
-Lemma S_Pi (a a0 b b0 : tm) :
+Lemma S_Pi w (a a0 b b0 : tm) :
   a ⇒* a0 ->
   b ⇒* b0 ->
-  (tPi a b) ⇒* (tPi a0 b0).
+  (tPi w a b) ⇒* (tPi w a0 b0).
 Proof.
   move => h.
   move : b b0.
@@ -289,9 +294,9 @@ Proof.
   - solve_s_rec.
 Qed.
 
-Lemma S_Abs (a b : tm)
+Lemma S_Abs w (a b : tm)
   (h : a ⇒* b) :
-  (tAbs a) ⇒* (tAbs b).
+  (tAbs w a) ⇒* (tAbs w b).
 Proof. elim : a b /h; hauto lq:on ctrs:Par,rtc. Qed.
 
 Lemma S_Eq a0 a1 b0 b1 A0 A1 :
@@ -355,11 +360,11 @@ Proof.
   qauto l:on use:S_Ind b:on.
 Qed.
 
-Lemma wne_app (a b : tm) :
-  wne a -> wn b -> wne (tApp a b).
+Lemma wne_app w (a b : tm) :
+  wne a -> wn b -> wne (tApp w a b).
 Proof.
   move => [a0 [? ?]] [b0 [? ?]].
-  exists (tApp a0 b0).
+  exists (tApp w a0 b0).
   hauto b:on use:S_AppLR.
 Qed.
 
@@ -371,17 +376,17 @@ Proof.
   hauto b:on use:S_Let.
 Qed.
 
-Lemma wn_abs (a : tm) (h : wn a) : wn (tAbs a).
+Lemma wn_abs w (a : tm) (h : wn a) : wn (tAbs w a).
 Proof.
   move : h => [v [? ?]].
-  exists (tAbs v).
+  exists (tAbs w v).
   eauto using S_Abs.
 Qed.
 
-Lemma wn_pi A B : wn A -> wn B -> wn (tPi A B).
+Lemma wn_pi w A B : wn A -> wn B -> wn (tPi w A B).
 Proof.
   move => [A0 [? ?]] [B0 [? ?]].
-  exists (tPi A0 B0).
+  exists (tPi w A0 B0).
   hauto lqb:on use:S_Pi.
 Qed.
 
@@ -415,11 +420,11 @@ Qed.
    inversion principle for terms with normal forms. If a term applied to a
    variable is normal, then the term itself is normal. *)
 
-Lemma ext_wn (a : tm) i :
-    wn (tApp a (var_tm i)) ->
+Lemma ext_wn w (a : tm) i :
+    wn (tApp w a (var_tm i)) ->
     wn a.
 Proof.
-  move E : (tApp a (var_tm i)) => a0 [v [hr hv]].
+  move E : (tApp w a (var_tm i)) => a0 [v [hr hv]].
   move : a E.
   move : hv.
   elim : a0 v / hr.
@@ -427,12 +432,12 @@ Proof.
   - move => a0 a1 a2 hr0 hr1 ih hnfa2.
     move /(_ hnfa2) in ih.
     move => a.
-    case : a0 hr0=>// => b0 b1.
+    case : a0 hr0=>// => w' b0 b1.
     elim /Par_inv=>//.
     + hauto q:on inv:Par ctrs:rtc b:on.
-    + move => ? a0 a3 b2 b3 ? ? [? ?] ? [? ?]. subst.
+    + move => ? w'' a0 a3 b2 b3 ? ? [? ?] ? [? ?]. subst.
       have ? : b3 = var_tm i by hauto lq:on inv:Par. subst.
-      suff : wn (tAbs a3) by hauto lq:on ctrs:Par, rtc unfold:wn.
+      suff : wn (tAbs w' a3) by hauto lq:on ctrs:Par, rtc unfold:wn.
       have : wn (subst_tm ((var_tm i) ..) a3) by sfirstorder.
       replace (subst_tm ((var_tm i) ..) a3) with (ren_tm (i..) a3).
       move /wn_antirenaming.

@@ -113,7 +113,7 @@ Proof.
     move: (hρ _ _ l _ _ h1).
     by asimpl.
   (* Pi *)
-  - move => Γ i A B _ /SemWt_Univ h0 _ /SemWt_Univ h1.
+  - move => Γ w i A B _ /SemWt_Univ h0 _ /SemWt_Univ h1.
     apply SemWt_Univ.
     move => ρ hρ.
     move /(_ ρ hρ) : h0; intros (PA & hPA).
@@ -121,7 +121,7 @@ Proof.
     apply InterpUnivN_Fun_nopf; eauto.
     move => *; asimpl. eauto using ρ_ok_cons.
   (* Abs *)
-  - move => Γ A b B i _ /SemWt_Univ hB _ hb ρ hρ.
+  - move => Γ w A b B i _ /SemWt_Univ hB _ hb ρ hρ.
     case /(_ ρ hρ) : hB => /= PPi hPPi.
     exists i, PPi. split => //.
     move /InterpUnivN_Fun_inv_nopf : hPPi.
@@ -134,7 +134,7 @@ Proof.
     replace PB0 with PB in * by hauto l:on use:InterpUnivN_deterministic'.
     qauto l:on use:P_AppAbs_cbn,InterpUnivN_back_clos  solve+:(by asimpl).
   (* App *)
-  - move => Γ f A B b _ ihf _ ihb ρ hρ.
+  - move => Γ w f A B b _ ihf _ ihb ρ hρ.
     rewrite /SemWt in ihf ihb.
     move /(_ ρ hρ) : ihf; intros (i & PPi & hPi & hf).
     move /(_ ρ hρ) : ihb; intros (j & PA & hPA & hb).
@@ -381,22 +381,22 @@ Inductive stm (n : nat) : tm -> Prop :=
   (* ----- *)
   stm n (var_tm i)
 
-| SC_Abs b :
+| SC_Abs w b :
   stm (S n) b ->
   (* ------------ *)
-  stm n (tAbs b)
+  stm n (tAbs w b)
 
-| SC_App a b :
+| SC_App w a b :
   stm n a ->
   stm n b ->
   (* ---------- *)
-  stm n (tApp a b)
+  stm n (tApp w a b)
 
-| SC_Pi A B :
+| SC_Pi w A B :
   stm n A ->
   stm (S n) B ->
   (* ------------ *)
-  stm n (tPi A B)
+  stm n (tPi w A B)
 
 | SC_Univ i :
   (* ----------- *)

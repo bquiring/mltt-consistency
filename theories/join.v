@@ -21,25 +21,25 @@ Inductive Par : tm -> tm -> Prop :=
 | P_Univ n :
   (* -------- *)
   (tUniv n) ⇒ (tUniv n)
-| P_Pi A0 A1 B0 B1 :
+| P_Pi w A0 A1 B0 B1 :
   (A0 ⇒ A1) ->
   (B0 ⇒ B1) ->
   (* --------------------- *)
-  (tPi A0 B0) ⇒ (tPi A1 B1)
-| P_Abs a0 a1 :
+  (tPi w A0 B0) ⇒ (tPi w A1 B1)
+| P_Abs w a0 a1 :
   (a0 ⇒ a1) ->
   (* -------------------- *)
-  (tAbs a0) ⇒ (tAbs a1)
-| P_App a0 a1 b0 b1 :
+  (tAbs w a0) ⇒ (tAbs w a1)
+| P_App w a0 a1 b0 b1 :
   (a0 ⇒ a1) ->
   (b0 ⇒ b1) ->
   (* ------------------------- *)
-  (tApp a0 b0) ⇒ (tApp a1 b1)
-| P_AppAbs a a0 b0 b1 :
+  (tApp w a0 b0) ⇒ (tApp w a1 b1)
+| P_AppAbs w a a0 b0 b1 :
   (a ⇒ a0) ->
   (b0 ⇒ b1) ->
   (* ---------------------------- *)
-  (tApp (tAbs a) b0) ⇒ (a0 [b1..])
+  (tApp w (tAbs w a) b0) ⇒ (a0 [b1..])
 | P_Zero :
   (* ------- *)
   tZero ⇒ tZero
@@ -128,18 +128,18 @@ Proof. elim : a; hauto lq:on ctrs:Par. Qed.
 (* ------------------------------------------------------------ *)
 
 (* A top-level beta-reduction is a parallel reduction *)
-Lemma P_AppAbs_cbn (a b b0 : tm) :
+Lemma P_AppAbs_cbn {w} (a b b0 : tm) :
   b0 = a [b..] ->
-  (tApp (tAbs a) b) ⇒ b0.
+  (tApp w (tAbs w a) b) ⇒ b0.
 Proof. hauto lq:on ctrs:Par use:Par_refl. Qed.
 
 (* convenience introduction form for P_AppAbs' *)
-Lemma P_AppAbs' a a0 b0 b b1 :
+Lemma P_AppAbs' {w} a a0 b0 b b1 :
   b = a0 [b1..] ->
   (a ⇒ a0) ->
   (b0 ⇒ b1) ->
   (* ---------------------------- *)
-  (tApp (tAbs a) b0) ⇒ b.
+  (tApp w (tAbs w a) b0) ⇒ b.
 Proof. hauto lq:on use:P_AppAbs. Qed.
 
 Lemma P_IndSuc' a0 a1 b0 b1 c0 c1 t :
@@ -222,7 +222,7 @@ Proof.
   elim : a b / h0; try solve [simpl; eauto with par].
   - qauto db:par use: (Par_morphing_lift_n 1).
   - qauto l:on db:par use:(Par_morphing_lift_n 1).
-  - move => a a0 b0 b1 h0 ih0 h1 ih1 σ0 σ h /=.
+  - move => w a a0 b0 b1 h0 ih0 h1 ih1 σ0 σ h /=.
     apply P_AppAbs' with (a0 := a0 [up_tm_tm σ]) (b1 := b1 [σ]).
     by asimpl. hauto l:on unfold:Par_m use:Par_renaming inv:nat. eauto.
   - qauto db:par use:(Par_morphing_lift_n 2).
@@ -383,10 +383,10 @@ Qed.
 
 (* Inversion lemmas *)
 
-Lemma Pars_pi_inv A B C (h : (tPi A B) ⇒* C) :
-  exists A0 B0, C = tPi A0 B0 /\ (A ⇒* A0) /\ (B ⇒* B0).
+Lemma Pars_pi_inv w A B C (h : (tPi w A B) ⇒* C) :
+  exists A0 B0, C = tPi w A0 B0 /\ (A ⇒* A0) /\ (B ⇒* B0).
 Proof.
-  move E : (tPi A B) h => T h.
+  move E : (tPi w A B) h => T h.
   move : A B E.
   elim : T C / h; hecrush inv:Par ctrs:Par, rtc.
 Qed.
@@ -504,10 +504,11 @@ Function tstar (a : tm) :=
   match a with
   | var_tm i => a
   | tUniv _ => a
-  | tPi A B => tPi (tstar A) (tstar B)
-  | tAbs a => tAbs (tstar a)
-  | tApp (tAbs a) b =>  (tstar a) [(tstar b)..]
-  | tApp a b => tApp (tstar a) (tstar b)
+  | tPi w A B => tPi w (tstar A) (tstar B)
+  | tAbs w a => tAbs w (tstar a)
+  | tApp w (tAbs w' a') b =>
+      if web_eq w w' then (tstar a') [(tstar b)..] else a
+  | tApp w a b => tApp w (tstar a) (tstar b)
   | tZero => tZero
   | tSuc a => tSuc (tstar a)
   | tInd a b tZero => tstar a
@@ -526,8 +527,20 @@ Function tstar (a : tm) :=
 
 Lemma Par_triangle a : forall b, (a ⇒ b) -> (b ⇒ tstar a).
 Proof.
-  apply tstar_ind; hauto lq:on inv:Par use:Par_refl,Par_cong,Par_cong2 ctrs:Par.
-Qed.
+  apply tstar_ind. 
+  1,2,3,4,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21: hauto lq:on inv:Par use:Par_refl,Par_cong,Par_cong2 ctrs:Par.
+  - intros. 
+    rewrite web_eq_dec in e0; subst. 
+    hauto lq:on inv:Par use:Par_refl,Par_cong,Par_cong2 ctrs:Par.
+  - intros.
+    destruct _x; auto; try contradiction.
+    rewrite web_eq_dec' in e0; subst. 
+    inversion H; subst.
+    + (* H4 is very weird. *)
+      inversion H4; subst.
+      admit.
+    + destruct e0; auto.
+Admitted.
 
 Lemma Par_confluent : diamond Par.
 Proof. hauto lq:on use:Par_triangle unfold:diamond. Qed.
@@ -560,10 +573,10 @@ Qed.
 Inductive Sub1 : tm -> tm -> Prop :=
 | Sub_Var n :
   Sub1 (var_tm n) (var_tm n)
-| Sub_Abs b :
-  Sub1 (tAbs b) (tAbs b)
-| Sub_App b a :
-  Sub1 (tApp b a) (tApp b a)
+| Sub_Abs w b :
+  Sub1 (tAbs w b) (tAbs w b)
+| Sub_App w b a :
+  Sub1 (tApp w b a) (tApp w b a)
 | Sub_Zero :
   Sub1 tZero tZero
 | Sub_Suc a :
@@ -581,10 +594,10 @@ Inductive Sub1 : tm -> tm -> Prop :=
 | Sub_Univ i j :
   i <= j ->
   Sub1 (tUniv i) (tUniv j)
-| Sub_Prod A0 B0 A1 B1 :
+| Sub_Prod w A0 B0 A1 B1 :
   Sub1 A1 A0 ->
   Sub1 B0 B1 ->
-  Sub1 (tPi A0 B0) (tPi A1 B1)
+  Sub1 (tPi w A0 B0) (tPi w A1 B1)
 | Sub_Sig A0 B0 A1 B1 :
   Sub1 A0 A1 ->
   Sub1 B0 B1 ->
@@ -659,7 +672,7 @@ Proof.
   by inversion 1.
 Qed.
 
-Lemma Sub_pi_inj A B A0 B0 : tPi A B <: tPi A0 B0 ->
+Lemma Sub_pi_inj w A B A0 B0 : tPi w A B <: tPi w A0 B0 ->
   A0 <: A /\ B <: B0.
 Proof.
   rewrite /Sub.

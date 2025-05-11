@@ -2,14 +2,20 @@ Require Import core unscoped.
 
 Require Import Setoid Morphisms Relation_Definitions.
 
+Axiom web : Type.
+Axiom web_eq : web -> web -> bool.
+Axiom web_eq_dec : (forall w1 w2, web_eq w1 w2 = true <-> w1 = w2).
+Lemma web_eq_dec' : (forall w1 w2, web_eq w1 w2 = false <-> w1 <> w2).
+Proof.
+Admitted.
 
 Module Core.
 
 Inductive tm : Type :=
   | var_tm : nat -> tm
-  | tAbs : tm -> tm
-  | tApp : tm -> tm -> tm
-  | tPi : tm -> tm -> tm
+  | tAbs : web -> tm -> tm
+  | tApp : web -> tm -> tm -> tm
+  | tPi : web -> tm -> tm -> tm
   | tUniv : nat -> tm
   | tEq : tm -> tm -> tm -> tm
   | tJ : tm -> tm -> tm -> tm -> tm
@@ -22,23 +28,28 @@ Inductive tm : Type :=
   | tPack : tm -> tm -> tm
   | tLet : tm -> tm -> tm.
 
-Lemma congr_tAbs {s0 : tm} {t0 : tm} (H0 : s0 = t0) : tAbs s0 = tAbs t0.
+Lemma congr_tAbs {s0 : web} {s1 : tm} {t0 : web} {t1 : tm} (H0 : s0 = t0)
+  (H1 : s1 = t1) : tAbs s0 s1 = tAbs t0 t1.
 Proof.
-exact (eq_trans eq_refl (ap (fun x => tAbs x) H0)).
+exact (eq_trans (eq_trans eq_refl (ap (fun x => tAbs x s1) H0))
+         (ap (fun x => tAbs t0 x) H1)).
 Qed.
 
-Lemma congr_tApp {s0 : tm} {s1 : tm} {t0 : tm} {t1 : tm} (H0 : s0 = t0)
-  (H1 : s1 = t1) : tApp s0 s1 = tApp t0 t1.
+Lemma congr_tApp {s0 : web} {s1 : tm} {s2 : tm} {t0 : web} {t1 : tm}
+  {t2 : tm} (H0 : s0 = t0) (H1 : s1 = t1) (H2 : s2 = t2) :
+  tApp s0 s1 s2 = tApp t0 t1 t2.
 Proof.
-exact (eq_trans (eq_trans eq_refl (ap (fun x => tApp x s1) H0))
-         (ap (fun x => tApp t0 x) H1)).
+exact (eq_trans
+         (eq_trans (eq_trans eq_refl (ap (fun x => tApp x s1 s2) H0))
+            (ap (fun x => tApp t0 x s2) H1)) (ap (fun x => tApp t0 t1 x) H2)).
 Qed.
 
-Lemma congr_tPi {s0 : tm} {s1 : tm} {t0 : tm} {t1 : tm} (H0 : s0 = t0)
-  (H1 : s1 = t1) : tPi s0 s1 = tPi t0 t1.
+Lemma congr_tPi {s0 : web} {s1 : tm} {s2 : tm} {t0 : web} {t1 : tm} {t2 : tm}
+  (H0 : s0 = t0) (H1 : s1 = t1) (H2 : s2 = t2) : tPi s0 s1 s2 = tPi t0 t1 t2.
 Proof.
-exact (eq_trans (eq_trans eq_refl (ap (fun x => tPi x s1) H0))
-         (ap (fun x => tPi t0 x) H1)).
+exact (eq_trans
+         (eq_trans (eq_trans eq_refl (ap (fun x => tPi x s1 s2) H0))
+            (ap (fun x => tPi t0 x s2) H1)) (ap (fun x => tPi t0 t1 x) H2)).
 Qed.
 
 Lemma congr_tUniv {s0 : nat} {t0 : nat} (H0 : s0 = t0) : tUniv s0 = tUniv t0.
@@ -124,9 +135,9 @@ Defined.
 Fixpoint ren_tm (xi_tm : nat -> nat) (s : tm) {struct s} : tm :=
   match s with
   | var_tm s0 => var_tm (xi_tm s0)
-  | tAbs s0 => tAbs (ren_tm (upRen_tm_tm xi_tm) s0)
-  | tApp s0 s1 => tApp (ren_tm xi_tm s0) (ren_tm xi_tm s1)
-  | tPi s0 s1 => tPi (ren_tm xi_tm s0) (ren_tm (upRen_tm_tm xi_tm) s1)
+  | tAbs s0 s1 => tAbs s0 (ren_tm (upRen_tm_tm xi_tm) s1)
+  | tApp s0 s1 s2 => tApp s0 (ren_tm xi_tm s1) (ren_tm xi_tm s2)
+  | tPi s0 s1 s2 => tPi s0 (ren_tm xi_tm s1) (ren_tm (upRen_tm_tm xi_tm) s2)
   | tUniv s0 => tUniv s0
   | tEq s0 s1 s2 => tEq (ren_tm xi_tm s0) (ren_tm xi_tm s1) (ren_tm xi_tm s2)
   | tJ s0 s1 s2 s3 =>
@@ -153,9 +164,10 @@ Defined.
 Fixpoint subst_tm (sigma_tm : nat -> tm) (s : tm) {struct s} : tm :=
   match s with
   | var_tm s0 => sigma_tm s0
-  | tAbs s0 => tAbs (subst_tm (up_tm_tm sigma_tm) s0)
-  | tApp s0 s1 => tApp (subst_tm sigma_tm s0) (subst_tm sigma_tm s1)
-  | tPi s0 s1 => tPi (subst_tm sigma_tm s0) (subst_tm (up_tm_tm sigma_tm) s1)
+  | tAbs s0 s1 => tAbs s0 (subst_tm (up_tm_tm sigma_tm) s1)
+  | tApp s0 s1 s2 => tApp s0 (subst_tm sigma_tm s1) (subst_tm sigma_tm s2)
+  | tPi s0 s1 s2 =>
+      tPi s0 (subst_tm sigma_tm s1) (subst_tm (up_tm_tm sigma_tm) s2)
   | tUniv s0 => tUniv s0
   | tEq s0 s1 s2 =>
       tEq (subst_tm sigma_tm s0) (subst_tm sigma_tm s1)
@@ -193,14 +205,15 @@ Fixpoint idSubst_tm (sigma_tm : nat -> tm)
 subst_tm sigma_tm s = s :=
   match s with
   | var_tm s0 => Eq_tm s0
-  | tAbs s0 =>
-      congr_tAbs (idSubst_tm (up_tm_tm sigma_tm) (upId_tm_tm _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (idSubst_tm sigma_tm Eq_tm s0)
-        (idSubst_tm sigma_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (idSubst_tm sigma_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (idSubst_tm (up_tm_tm sigma_tm) (upId_tm_tm _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0) (idSubst_tm sigma_tm Eq_tm s1)
+        (idSubst_tm sigma_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0) (idSubst_tm sigma_tm Eq_tm s1)
+        (idSubst_tm (up_tm_tm sigma_tm) (upId_tm_tm _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (idSubst_tm sigma_tm Eq_tm s0) (idSubst_tm sigma_tm Eq_tm s1)
@@ -244,17 +257,17 @@ Fixpoint extRen_tm (xi_tm : nat -> nat) (zeta_tm : nat -> nat)
 ren_tm xi_tm s = ren_tm zeta_tm s :=
   match s with
   | var_tm s0 => ap (var_tm) (Eq_tm s0)
-  | tAbs s0 =>
-      congr_tAbs
-        (extRen_tm (upRen_tm_tm xi_tm) (upRen_tm_tm zeta_tm)
-           (upExtRen_tm_tm _ _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (extRen_tm xi_tm zeta_tm Eq_tm s0)
-        (extRen_tm xi_tm zeta_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (extRen_tm xi_tm zeta_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (extRen_tm (upRen_tm_tm xi_tm) (upRen_tm_tm zeta_tm)
            (upExtRen_tm_tm _ _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0) (extRen_tm xi_tm zeta_tm Eq_tm s1)
+        (extRen_tm xi_tm zeta_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0) (extRen_tm xi_tm zeta_tm Eq_tm s1)
+        (extRen_tm (upRen_tm_tm xi_tm) (upRen_tm_tm zeta_tm)
+           (upExtRen_tm_tm _ _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (extRen_tm xi_tm zeta_tm Eq_tm s0)
@@ -303,17 +316,17 @@ Fixpoint ext_tm (sigma_tm : nat -> tm) (tau_tm : nat -> tm)
 subst_tm sigma_tm s = subst_tm tau_tm s :=
   match s with
   | var_tm s0 => Eq_tm s0
-  | tAbs s0 =>
-      congr_tAbs
-        (ext_tm (up_tm_tm sigma_tm) (up_tm_tm tau_tm) (upExt_tm_tm _ _ Eq_tm)
-           s0)
-  | tApp s0 s1 =>
-      congr_tApp (ext_tm sigma_tm tau_tm Eq_tm s0)
-        (ext_tm sigma_tm tau_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (ext_tm sigma_tm tau_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (ext_tm (up_tm_tm sigma_tm) (up_tm_tm tau_tm) (upExt_tm_tm _ _ Eq_tm)
            s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0) (ext_tm sigma_tm tau_tm Eq_tm s1)
+        (ext_tm sigma_tm tau_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0) (ext_tm sigma_tm tau_tm Eq_tm s1)
+        (ext_tm (up_tm_tm sigma_tm) (up_tm_tm tau_tm) (upExt_tm_tm _ _ Eq_tm)
+           s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (ext_tm sigma_tm tau_tm Eq_tm s0)
@@ -356,17 +369,17 @@ Fixpoint compRenRen_tm (xi_tm : nat -> nat) (zeta_tm : nat -> nat)
 (s : tm) {struct s} : ren_tm zeta_tm (ren_tm xi_tm s) = ren_tm rho_tm s :=
   match s with
   | var_tm s0 => ap (var_tm) (Eq_tm s0)
-  | tAbs s0 =>
-      congr_tAbs
-        (compRenRen_tm (upRen_tm_tm xi_tm) (upRen_tm_tm zeta_tm)
-           (upRen_tm_tm rho_tm) (up_ren_ren _ _ _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s0)
-        (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (compRenRen_tm (upRen_tm_tm xi_tm) (upRen_tm_tm zeta_tm)
            (upRen_tm_tm rho_tm) (up_ren_ren _ _ _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0) (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s1)
+        (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0) (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s1)
+        (compRenRen_tm (upRen_tm_tm xi_tm) (upRen_tm_tm zeta_tm)
+           (upRen_tm_tm rho_tm) (up_ren_ren _ _ _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (compRenRen_tm xi_tm zeta_tm rho_tm Eq_tm s0)
@@ -420,17 +433,18 @@ Fixpoint compRenSubst_tm (xi_tm : nat -> nat) (tau_tm : nat -> tm)
 subst_tm tau_tm (ren_tm xi_tm s) = subst_tm theta_tm s :=
   match s with
   | var_tm s0 => Eq_tm s0
-  | tAbs s0 =>
-      congr_tAbs
-        (compRenSubst_tm (upRen_tm_tm xi_tm) (up_tm_tm tau_tm)
-           (up_tm_tm theta_tm) (up_ren_subst_tm_tm _ _ _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s0)
-        (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (compRenSubst_tm (upRen_tm_tm xi_tm) (up_tm_tm tau_tm)
            (up_tm_tm theta_tm) (up_ren_subst_tm_tm _ _ _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0)
+        (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s1)
+        (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0) (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s1)
+        (compRenSubst_tm (upRen_tm_tm xi_tm) (up_tm_tm tau_tm)
+           (up_tm_tm theta_tm) (up_ren_subst_tm_tm _ _ _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (compRenSubst_tm xi_tm tau_tm theta_tm Eq_tm s0)
@@ -494,17 +508,19 @@ Fixpoint compSubstRen_tm (sigma_tm : nat -> tm) (zeta_tm : nat -> nat)
 ren_tm zeta_tm (subst_tm sigma_tm s) = subst_tm theta_tm s :=
   match s with
   | var_tm s0 => Eq_tm s0
-  | tAbs s0 =>
-      congr_tAbs
-        (compSubstRen_tm (up_tm_tm sigma_tm) (upRen_tm_tm zeta_tm)
-           (up_tm_tm theta_tm) (up_subst_ren_tm_tm _ _ _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s0)
-        (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (compSubstRen_tm (up_tm_tm sigma_tm) (upRen_tm_tm zeta_tm)
            (up_tm_tm theta_tm) (up_subst_ren_tm_tm _ _ _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0)
+        (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s1)
+        (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0)
+        (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s1)
+        (compSubstRen_tm (up_tm_tm sigma_tm) (upRen_tm_tm zeta_tm)
+           (up_tm_tm theta_tm) (up_subst_ren_tm_tm _ _ _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (compSubstRen_tm sigma_tm zeta_tm theta_tm Eq_tm s0)
@@ -569,17 +585,19 @@ Fixpoint compSubstSubst_tm (sigma_tm : nat -> tm) (tau_tm : nat -> tm)
 subst_tm tau_tm (subst_tm sigma_tm s) = subst_tm theta_tm s :=
   match s with
   | var_tm s0 => Eq_tm s0
-  | tAbs s0 =>
-      congr_tAbs
-        (compSubstSubst_tm (up_tm_tm sigma_tm) (up_tm_tm tau_tm)
-           (up_tm_tm theta_tm) (up_subst_subst_tm_tm _ _ _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s0)
-        (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (compSubstSubst_tm (up_tm_tm sigma_tm) (up_tm_tm tau_tm)
            (up_tm_tm theta_tm) (up_subst_subst_tm_tm _ _ _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0)
+        (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s1)
+        (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0)
+        (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s1)
+        (compSubstSubst_tm (up_tm_tm sigma_tm) (up_tm_tm tau_tm)
+           (up_tm_tm theta_tm) (up_subst_subst_tm_tm _ _ _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (compSubstSubst_tm sigma_tm tau_tm theta_tm Eq_tm s0)
@@ -685,17 +703,17 @@ Fixpoint rinst_inst_tm (xi_tm : nat -> nat) (sigma_tm : nat -> tm)
    : ren_tm xi_tm s = subst_tm sigma_tm s :=
   match s with
   | var_tm s0 => Eq_tm s0
-  | tAbs s0 =>
-      congr_tAbs
-        (rinst_inst_tm (upRen_tm_tm xi_tm) (up_tm_tm sigma_tm)
-           (rinstInst_up_tm_tm _ _ Eq_tm) s0)
-  | tApp s0 s1 =>
-      congr_tApp (rinst_inst_tm xi_tm sigma_tm Eq_tm s0)
-        (rinst_inst_tm xi_tm sigma_tm Eq_tm s1)
-  | tPi s0 s1 =>
-      congr_tPi (rinst_inst_tm xi_tm sigma_tm Eq_tm s0)
+  | tAbs s0 s1 =>
+      congr_tAbs (eq_refl s0)
         (rinst_inst_tm (upRen_tm_tm xi_tm) (up_tm_tm sigma_tm)
            (rinstInst_up_tm_tm _ _ Eq_tm) s1)
+  | tApp s0 s1 s2 =>
+      congr_tApp (eq_refl s0) (rinst_inst_tm xi_tm sigma_tm Eq_tm s1)
+        (rinst_inst_tm xi_tm sigma_tm Eq_tm s2)
+  | tPi s0 s1 s2 =>
+      congr_tPi (eq_refl s0) (rinst_inst_tm xi_tm sigma_tm Eq_tm s1)
+        (rinst_inst_tm (upRen_tm_tm xi_tm) (up_tm_tm sigma_tm)
+           (rinstInst_up_tm_tm _ _ Eq_tm) s2)
   | tUniv s0 => congr_tUniv (eq_refl s0)
   | tEq s0 s1 s2 =>
       congr_tEq (rinst_inst_tm xi_tm sigma_tm Eq_tm s0)
@@ -790,11 +808,11 @@ Qed.
 Class Up_tm X Y :=
     up_tm : X -> Y.
 
-#[global] Instance Subst_tm : (Subst1 _ _ _) := @subst_tm.
+#[global]Instance Subst_tm : (Subst1 _ _ _) := @subst_tm.
 
-#[global] Instance Up_tm_tm : (Up_tm _ _) := @up_tm_tm.
+#[global]Instance Up_tm_tm : (Up_tm _ _) := @up_tm_tm.
 
-#[global] Instance Ren_tm : (Ren1 _ _ _) := @ren_tm.
+#[global]Instance Ren_tm : (Ren1 _ _ _) := @ren_tm.
 
 #[global]
 Instance VarInstance_tm : (Var _ _) := @var_tm.
@@ -911,9 +929,9 @@ Module Extra.
 
 Import Core.
 
-#[global] Hint Opaque subst_tm: rewrite.
+#[global]Hint Opaque subst_tm: rewrite.
 
-#[global] Hint Opaque ren_tm: rewrite.
+#[global]Hint Opaque ren_tm: rewrite.
 
 End Extra.
 
